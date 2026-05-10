@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Host Ministry Bingo</title>
+<script>
+(function(){
+  var ua=navigator.userAgent||'';
+  var isWebview=/(iPhone|iPod|iPad).*AppleWebKit(?!.*Safari)/i.test(ua)||/\bwv\b/.test(ua)||/Telegram/i.test(ua);
+  if(isWebview){
+    var url=window.location.href;
+    window.location='googlechrome://'+url.replace(/^https?:\/\//,'');
+    setTimeout(function(){
+      window.location='safari-https://'+url.replace(/^https?:\/\//,'');
+    },500);
+    setTimeout(function(){
+      document.body.innerHTML='<div style="font-family:sans-serif;padding:32px;text-align:center;color:#fff;background:#0f0e1a;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;"><p style="font-size:18px;margin-bottom:16px;">Open in your browser for the best experience</p><p style="font-size:14px;color:rgba(255,255,255,0.45);margin-bottom:32px">Tap the menu ( ··· ) and select<br><strong style="color:#AFA9EC">Open in Browser</strong></p><p style="font-size:40px">↑</p></div>';
+    },1000);
+  }
+})();
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --purple:#534AB7;--purple-light:#EEEDFE;--purple-mid:#AFA9EC;--purple-dark:#26215C;
+  --teal:#1D9E75;--teal-light:#E1F5EE;--teal-dark:#085041;
+  --coral:#D85A30;--amber:#BA7517;--amber-light:#FAEEDA;
+}
+body{font-family:'DM Sans',sans-serif;background:#0f0e1a;color:#fff;min-height:100vh;overflow-x:hidden}
+.bg{position:fixed;inset:0;background:radial-gradient(ellipse at 15% 15%,rgba(83,74,183,0.35) 0%,transparent 55%),radial-gradient(ellipse at 85% 85%,rgba(29,158,117,0.2) 0%,transparent 55%),#0f0e1a;z-index:0}
+.screen{position:relative;z-index:1;min-height:100vh;display:none;flex-direction:column;padding:28px 20px 48px;max-width:430px;margin:0 auto}
+.screen.active{display:flex}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* TYPOGRAPHY */
+.serif{font-family:'DM Serif Display',serif}
+.logo{font-size:12px;letter-spacing:0.15em;color:var(--purple-mid);text-transform:uppercase;margin-bottom:52px;margin-top:4px;font-weight:500}
+.page-title{font-family:'DM Serif Display',serif;font-size:40px;line-height:1.1;color:#fff;margin-bottom:12px}
+.page-sub{font-size:15px;color:rgba(255,255,255,0.45);line-height:1.65;margin-bottom:36px}
+
+/* INPUTS */
+.field-label{font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--purple-mid);margin-bottom:10px}
+input[type=text]{width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:15px 18px;font-family:'DM Sans',sans-serif;font-size:16px;color:#fff;outline:none;transition:border-color 0.2s}
+input[type=text]::placeholder{color:rgba(255,255,255,0.22)}
+input[type=text]:focus{border-color:var(--purple-mid)}
+.name-wrap{margin-bottom:28px}
+
+/* TEAM GRID */
+.team-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:40px;touch-action:manipulation}
+.team-btn{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:15px 12px;color:rgba(255,255,255,0.55);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all 0.15s;text-align:center;-webkit-appearance:none;appearance:none;touch-action:manipulation;user-select:none;-webkit-user-select:none;position:relative;z-index:1}
+.team-btn:active{transform:scale(0.97)}
+.team-btn.selected{background:var(--purple);border-color:var(--purple);color:#fff}
+
+/* BUTTONS */
+.cta{width:100%;background:#fff;color:var(--purple-dark);border:none;border-radius:16px;padding:17px;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;cursor:pointer;transition:all 0.15s;margin-top:auto}
+.cta:active{transform:scale(0.98);opacity:0.9}
+.cta:disabled{opacity:0.25;cursor:not-allowed}
+.back-btn{background:none;border:none;color:rgba(255,255,255,0.35);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;padding:0;margin-bottom:24px;display:flex;align-items:center;gap:5px}
+
+/* RULES ACCORDION */
+.rules-toggle{width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:14px;padding:13px 16px;color:rgba(255,255,255,0.55);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.rules-toggle .arrow{font-size:12px;transition:transform 0.2s}
+.rules-toggle.open .arrow{transform:rotate(180deg)}
+.rules-body{display:none;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;margin-bottom:14px}
+.rules-body.show{display:block}
+.rule-item{display:flex;gap:12px;margin-bottom:14px;align-items:flex-start}
+.rule-item:last-child{margin-bottom:0}
+.rule-num{width:24px;height:24px;border-radius:50%;background:var(--purple);color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.rule-text{font-size:13px;color:rgba(255,255,255,0.6);line-height:1.6}
+.rule-text strong{color:#fff;font-weight:600}
+
+/* BINGO SCREEN */
+.bingo-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.bingo-player{font-size:13px;color:rgba(255,255,255,0.38)}
+.team-badge{font-size:11px;font-weight:600;padding:4px 11px;border-radius:100px;background:rgba(83,74,183,0.25);color:var(--purple-mid)}
+.bingo-heading{font-family:'DM Serif Display',serif;font-size:30px;color:#fff;margin-bottom:4px}
+.bingo-sub{font-size:13px;color:rgba(255,255,255,0.32);margin-bottom:18px}
+.bingo-sub span{color:var(--purple-mid);font-weight:600}
+
+/* BINGO GRID */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}
+.cell{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:12px 10px;min-height:112px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;transition:all 0.15s;position:relative;overflow:hidden}
+.cell:active{transform:scale(0.95)}
+.cell.signed{background:rgba(83,74,183,0.22);border-color:rgba(83,74,183,0.6)}
+.cell.fixed{background:rgba(29,158,117,0.14);border-color:rgba(29,158,117,0.5)}
+.cell.free-cell{background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.06);cursor:default}
+.cell-emoji{font-size:22px;margin-bottom:6px;line-height:1}
+.cell-text{font-size:10px;line-height:1.45;color:rgba(255,255,255,0.55);font-weight:400}
+.cell.signed .cell-text{color:var(--purple-mid)}
+.cell.fixed .cell-text{color:rgba(29,158,117,0.85);font-weight:500}
+.cell.free-cell .cell-text{color:rgba(255,255,255,0.25)}
+.signed-name{font-size:10px;font-weight:600;color:#fff;margin-top:6px;background:var(--purple);padding:2px 9px;border-radius:100px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fixed-label{font-size:10px;font-weight:600;color:rgba(29,158,117,0.8);margin-top:6px}
+
+/* BINGO BANNER */
+.bingo-banner{background:rgba(29,158,117,0.14);border:1px solid rgba(29,158,117,0.45);border-radius:14px;padding:14px 18px;text-align:center;margin-bottom:16px;display:none}
+.bingo-banner.show{display:block}
+.bingo-banner-title{font-family:'DM Serif Display',serif;font-size:22px;color:#fff;margin-bottom:3px}
+.bingo-banner-sub{font-size:13px;color:rgba(29,158,117,0.85)}
+
+/* GROUP SECTION */
+.group-section{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:16px 18px;margin-bottom:16px}
+.group-label{font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.28);margin-bottom:12px}
+.group-names{display:flex;flex-direction:column;gap:7px}
+.group-pill{background:rgba(83,74,183,0.18);border:1px solid rgba(83,74,183,0.28);border-radius:10px;padding:9px 13px;font-size:14px;color:#fff;display:flex;align-items:center;justify-content:space-between}
+.group-pill-team{font-size:11px;color:rgba(255,255,255,0.35)}
+.group-empty{font-size:13px;color:rgba(255,255,255,0.22);font-style:italic}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;display:none;align-items:flex-end;justify-content:center}
+.overlay.show{display:flex}
+.modal{background:#1b1a2e;border-radius:26px 26px 0 0;padding:24px 22px 44px;width:100%;max-width:430px;border-top:1px solid rgba(255,255,255,0.08);max-height:90vh;overflow-y:auto}
+.drag{width:38px;height:4px;background:rgba(255,255,255,0.14);border-radius:2px;margin:0 auto 22px}
+.modal-title{font-family:'DM Serif Display',serif;font-size:22px;color:#fff;margin-bottom:6px}
+.modal-square{font-size:13px;color:rgba(255,255,255,0.42);margin-bottom:6px;line-height:1.55;font-style:italic}
+.modal-findout{background:rgba(186,117,23,0.15);border:1px solid rgba(186,117,23,0.3);border-radius:10px;padding:11px 14px;font-size:13px;color:#FAC775;line-height:1.55;margin-bottom:22px}
+.modal-findout-label{font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(186,117,23,0.7);margin-bottom:5px}
+.modal-field{margin-bottom:16px}
+.modal-field .field-label{margin-bottom:8px}
+select{width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:15px 18px;font-family:'DM Sans',sans-serif;font-size:15px;color:#fff;outline:none;appearance:none;-webkit-appearance:none}
+select option{background:#1b1a2e;color:#fff}
+.modal-warn{font-size:13px;color:#F09595;margin-bottom:14px;padding:10px 14px;background:rgba(226,75,74,0.1);border-radius:10px;display:none}
+.modal-warn.show{display:block}
+.modal-btns{display:flex;gap:10px;margin-top:4px}
+.btn-cancel{flex:1;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:13px;padding:15px;color:rgba(255,255,255,0.55);font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;cursor:pointer}
+.btn-confirm{flex:2;background:var(--purple);border:none;border-radius:13px;padding:15px;color:#fff;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:opacity 0.15s}
+.btn-confirm:disabled{opacity:0.3}
+.btn-confirm:active{opacity:0.85}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+
+<!-- SCREEN 1: ONBOARDING -->
+<div class="screen active" id="s-onboard">
+  <h2 class="sr-only">HOGC Host Ministry Bingo — enter your name and team to begin</h2>
+  <div class="logo">Host Ministry · HOGC</div>
+  <div class="page-title">Let's play<br>Bingo.</div>
+  <div class="page-sub">Mix, mingle, and find your group for today's training.</div>
+  <div class="field-label">Your name</div>
+  <div class="name-wrap"><input type="text" id="inp-name" placeholder="What do people call you?" autocomplete="off"></div>
+  <div class="field-label">Your serving team</div>
+  <div class="team-grid" id="team-grid">
+    <button class="team-btn" onclick="pickTeam(this,'Team 1')">Team 1</button>
+    <button class="team-btn" onclick="pickTeam(this,'Team 2')">Team 2</button>
+    <button class="team-btn" onclick="pickTeam(this,'Team 3')">Team 3</button>
+    <button class="team-btn" onclick="pickTeam(this,'Team 4')">Team 4</button>
+    <button class="team-btn" onclick="pickTeam(this,'Team 5')">Team 5</button>
+    <button class="team-btn" onclick="pickTeam(this,'Team 6')">Team 6</button>
+  </div>
+  <button class="cta" id="btn-start" disabled onclick="goBingo()">Let's play →</button>
+</div>
+
+<!-- SCREEN 3: BINGO -->
+<div class="screen" id="s-bingo">
+  <div class="bingo-top">
+    <div class="bingo-player" id="disp-name"></div>
+    <div class="team-badge" id="disp-team"></div>
+  </div>
+  <div class="bingo-heading">Your card</div>
+  <div class="bingo-sub" id="bingo-sub">Signed: <span>0</span> / 8</div>
+  <div class="bingo-banner" id="bingo-banner">
+    <div class="bingo-banner-title">BINGO!</div>
+    <div class="bingo-banner-sub">Shout it out — then keep going!</div>
+  </div>
+  <div class="grid" id="grid"></div>
+
+  <button class="rules-toggle" id="rules-toggle" onclick="toggleRules()">
+    <span>How to play</span><span class="arrow">▼</span>
+  </button>
+  <div class="rules-body" id="rules-body">
+    <div class="rule-item">
+      <div class="rule-num">1</div>
+      <div class="rule-text">Walk up to someone — <strong>"which of these is you?"</strong> Let them choose, ask the find-out question, then they sign.</div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">2</div>
+      <div class="rule-text"><strong>No one from your own team</strong> can sign your card.</div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">3</div>
+      <div class="rule-text">Each person can sign <strong>up to 2 squares</strong> but only appears <strong>once</strong> on your card.</div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">4</div>
+      <div class="rule-text">When time is called — find <strong>3 others</strong> where at least one signed your card. That's your group of 4.</div>
+    </div>
+  </div>
+  <div class="group-section">
+    <div class="group-label">People who signed your card</div>
+    <div class="group-names" id="group-names">
+      <div class="group-empty">No signatures yet — go find someone!</div>
+    </div>
+  </div>
+</div>
+
+<!-- SIGN MODAL -->
+<div class="overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="drag"></div>
+    <div class="modal-title">Sign this square</div>
+    <div class="modal-square" id="m-square"></div>
+    <div class="modal-findout">
+      <div class="modal-findout-label">Find out</div>
+      <div id="m-findout"></div>
+    </div>
+    <div class="modal-field">
+      <div class="field-label">Their name</div>
+      <input type="text" id="m-name" placeholder="e.g. Sarah" autocomplete="off">
+    </div>
+    <div class="modal-field">
+      <div class="field-label">Their team</div>
+      <select id="m-team">
+        <option value="">Select their team</option>
+        <option>Team 1</option>
+        <option>Team 2</option>
+        <option>Team 3</option>
+        <option>Team 4</option>
+        <option>Team 5</option>
+        <option>Team 6</option>
+      </select>
+    </div>
+    <div class="modal-warn" id="m-warn"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-confirm" id="btn-confirm" onclick="doSign()" disabled>Sign it</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ALL_SQUARES = [
+  {emoji:"🌱", text:"Is serving in Host for the first time this year", findout:"What made you say yes to joining Host?", level:1},
+  {emoji:"💌", text:"Joined Host because someone personally invited them", findout:"Who invited you — and why do you think they picked you?", level:1},
+  {emoji:"🚪", text:"Was once a guest at HOGC before becoming a host", findout:"What made you stay?", level:1},
+  {emoji:"🙏", text:"Has prayed for a guest — even silently while serving", findout:"What prompted you to pray for them in that moment?", level:1},
+  {emoji:"👶", text:"Has pulled a shift in baby space before", findout:"How was that different from serving on the floor?", level:1},
+  {emoji:"🍳", text:"Has shown up early enough to have breakfast with the team", findout:"What's one thing you've heard at the breakfast table that stuck with you?", level:1},
+  {emoji:"📣", text:"Has shouted out a fellow host in the team chat", findout:"What did that host do that made you want to call it out?", level:1},
+  {emoji:"🗺️", text:"Has served in all 3 positions before", findout:"Which position feels most natural — and which one still stretches you?", level:2},
+  {emoji:"😬", text:"Has done an awkward double-cover with another host on the same guest", findout:"How did you recover from that?", level:2},
+  {emoji:"🤐", text:"Has blanked on what to say mid-approach and had to wing it", findout:"What did you end up saying?", level:2},
+  {emoji:"📱", text:"Has posted a guest profile in the team chat during service", findout:"What's the most memorable guest you ever had to describe?", level:2},
+  {emoji:"🤝", text:"Has connected a guest to a leader or pastor directly", findout:"What was that handover moment like?", level:2},
+  {emoji:"📋", text:"Once wrote a PALD description so detailed it was almost too accurate", findout:"Read it out if you remember it!", level:2},
+  {emoji:"🪑", text:"Sat beside a guest during service so they wouldn't be alone", findout:"What was going through your mind when you decided to sit down?", level:2},
+  {emoji:"🆕", text:"Just started serving in Host last year or this year", findout:"What's been the most challenging part so far?", level:2},
+  {emoji:"💻", text:"Served as an online host during COVID", findout:"What was the strangest or most unexpected part of hosting online?", level:3},
+  {emoji:"🧥", text:"Has worn the Host blazer", findout:"Share what that experience was like — what does it mean to you?", level:3},
+  {emoji:"✨", text:"Has served at GPC", findout:"What was the experience like — share one moment that stood out.", level:3},
+  {emoji:"👀", text:"Spotted a guest who turned out to be a pastor or church leader", findout:"How did you find out — and how did the conversation change?", level:3},
+  {emoji:"🕊️", text:"Has prayed with a guest, not just for them", findout:"Share more — what led to that moment?", level:3},
+];
+
+const FIXED_SQUARE = {emoji:"💛", text:"Has a most memorable guest encounter they still think about today", findout:"Tell me the story.", fixed:true};
+
+let playerName='', playerTeam='', myTeam='';
+let card=[], cellSigned=[], signers=[];
+let activeIdx=-1;
+
+function pickTeam(btn, team){
+  document.querySelectorAll('.team-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  myTeam=team;
+  checkReady();
+}
+
+document.getElementById('inp-name').addEventListener('input', checkReady);
+
+function checkReady(){
+  const n=document.getElementById('inp-name').value.trim();
+  document.getElementById('btn-start').disabled=!(n&&myTeam);
+}
+
+function toggleRules(){
+  const btn=document.getElementById('rules-toggle');
+  const body=document.getElementById('rules-body');
+  btn.classList.toggle('open');
+  body.classList.toggle('show');
+}
+
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+function goBingo(){
+  playerName=document.getElementById('inp-name').value.trim();
+  playerTeam=myTeam;
+  document.getElementById('disp-name').textContent=playerName;
+  document.getElementById('disp-team').textContent=playerTeam;
+  const pool=shuffle(ALL_SQUARES).slice(0,7);
+  card=[pool[0],pool[1],pool[2],pool[3],null,pool[4],pool[5],pool[6],FIXED_SQUARE];
+  cellSigned=Array(9).fill(null);
+  signers=[];
+  renderGrid();
+  show('s-bingo');
+}
+
+function renderGrid(){
+  const g=document.getElementById('grid');
+  g.innerHTML='';
+  card.forEach((sq,i)=>{
+    const div=document.createElement('div');
+    if(sq===null){
+      div.className='cell free-cell';
+      div.innerHTML=`<div class="cell-emoji">⭐</div><div class="cell-text">Free square!</div>`;
+    } else if(sq.fixed){
+      div.className='cell fixed'+(cellSigned[i]?'':' ');
+      if(cellSigned[i]){
+        div.innerHTML=`<div class="cell-emoji">${sq.emoji}</div><div class="cell-text">${sq.text}</div><div class="signed-name">${cellSigned[i].name}</div>`;
+      } else {
+        div.innerHTML=`<div class="cell-emoji">${sq.emoji}</div><div class="cell-text">${sq.text}</div><div class="fixed-label">Find someone!</div>`;
+        div.onclick=()=>openModal(i);
+        div.style.cursor='pointer';
+      }
+    } else if(cellSigned[i]){
+      div.className='cell signed';
+      div.innerHTML=`<div class="cell-emoji">${sq.emoji}</div><div class="cell-text">${sq.text}</div><div class="signed-name">${cellSigned[i].name}</div>`;
+    } else {
+      div.className='cell';
+      div.innerHTML=`<div class="cell-emoji">${sq.emoji}</div><div class="cell-text">${sq.text}</div>`;
+      div.onclick=()=>openModal(i);
+    }
+    g.appendChild(div);
+  });
+  updateProgress();
+  updateGroup();
+  checkBingo();
+}
+
+function updateProgress(){
+  const signed=cellSigned.filter(Boolean).length;
+  document.getElementById('bingo-sub').innerHTML=`Signed: <span>${signed}</span> / 8`;
+}
+
+function updateGroup(){
+  const container=document.getElementById('group-names');
+  if(signers.length===0){
+    container.innerHTML='<div class="group-empty">No signatures yet — go find someone!</div>';
+    return;
+  }
+  container.innerHTML=signers.map(s=>`<div class="group-pill"><span>${s.name}</span><span class="group-pill-team">${s.team}</span></div>`).join('');
+}
+
+const LINES=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+function checkBingo(){
+  const ok=i=>i===4||cellSigned[i]||(card[i]&&card[i].fixed&&cellSigned[i]);
+  const freeOk=i=>card[i]===null||ok(i);
+  const hasBingo=LINES.some(line=>line.every(i=>card[i]===null?true:cellSigned[i]));
+  document.getElementById('bingo-banner').classList.toggle('show',hasBingo);
+}
+
+function openModal(idx){
+  activeIdx=idx;
+  const sq=card[idx];
+  document.getElementById('m-square').textContent=sq.text;
+  document.getElementById('m-findout').textContent=sq.findout;
+  document.getElementById('m-name').value='';
+  document.getElementById('m-team').value='';
+  document.getElementById('m-warn').className='modal-warn';
+  document.getElementById('m-warn').textContent='';
+  document.getElementById('btn-confirm').disabled=true;
+  document.getElementById('modal-overlay').classList.add('show');
+  setTimeout(()=>document.getElementById('m-name').focus(),300);
+}
+
+function validate(){
+  const name=document.getElementById('m-name').value.trim();
+  const team=document.getElementById('m-team').value;
+  const warn=document.getElementById('m-warn');
+  const alreadySigned=signers.find(s=>s.name.toLowerCase()===name.toLowerCase());
+  const signerSquareCount=name?cellSigned.filter(c=>c&&c.name.toLowerCase()===name.toLowerCase()).length:0;
+
+  if(team===playerTeam&&team){
+    warn.textContent='Same team as you! Find someone from a different team.';
+    warn.classList.add('show');
+    document.getElementById('btn-confirm').disabled=true;
+    return;
+  }
+  if(alreadySigned&&signerSquareCount>=2){
+    warn.textContent=`${name} has already signed 2 squares on your card.`;
+    warn.classList.add('show');
+    document.getElementById('btn-confirm').disabled=true;
+    return;
+  }
+  warn.classList.remove('show');
+  document.getElementById('btn-confirm').disabled=!(name&&team);
+}
+
+document.getElementById('m-name').addEventListener('input',validate);
+document.getElementById('m-team').addEventListener('change',validate);
+
+function closeModal(){
+  document.getElementById('modal-overlay').classList.remove('show');
+  activeIdx=-1;
+}
+
+function doSign(){
+  const name=document.getElementById('m-name').value.trim();
+  const team=document.getElementById('m-team').value;
+  if(!name||!team||team===playerTeam) return;
+  cellSigned[activeIdx]={name,team};
+  if(!signers.find(s=>s.name.toLowerCase()===name.toLowerCase())){
+    signers.push({name,team});
+  }
+  closeModal();
+  renderGrid();
+}
+
+document.getElementById('modal-overlay').addEventListener('click',function(e){
+  if(e.target===this) closeModal();
+});
+</script>
+</body>
+</html>
