@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>HOGC Guest Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{background:#0D0F14;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#F0F2F8;overscroll-behavior:none;}
+  input,select,textarea{font-family:inherit;-webkit-appearance:none;appearance:none;}
+  select option{background:#1C2030;color:#F0F2F8;}
+  ::-webkit-scrollbar{width:3px;}
+  ::-webkit-scrollbar-thumb{background:#252A3A;border-radius:2px;}
+  input[type=number]::-webkit-inner-spin-button{opacity:1;}
+  .screen{position:fixed;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useCallback} = React;
+
+const C={bg:"#0D0F14",surface:"#151820",card:"#1C2030",border:"#252A3A",
+  accent:"#4F7EFF",accentSoft:"#4F7EFF22",green:"#34D399",greenSoft:"#34D39922",
+  amber:"#FBBF24",amberSoft:"#FBBF2422",red:"#F87171",redSoft:"#F8717122",
+  purple:"#A78BFA",purpleSoft:"#A78BFA22",teal:"#2DD4BF",tealSoft:"#2DD4BF22",
+  text:"#F0F2F8",muted:"#8891AA",dimmed:"#454D66"};
+
+const HOSTS_DEFAULT=["Bryan","Sheena","Marcus","Joy","Caleb","Rachel"];
+const PHASES=["Youth","UR/Poly","Young Adult","Young Family","Family"];
+const HOW_HEARD=["Google","Conference","Pastor Referral","Friend","Social Media","Other"];
+const SECTIONS=["A1","A2","A3","A4","B1","B2","B3","B4","B5","C1","C2","C3","C4","D1","D2","D3","D4","D5","D6","E"];
+const ROWS=["1st row","2nd row","3rd row","4th row","Last row","2nd last row","3rd last row","4th last row"];
+const CONN_OPTS=[
+  {label:"Connected to Pastor / Senior Leader",color:C.purple},
+  {label:"Connected to Youth Leader / Ministry Head",color:C.accent},
+  {label:"Connected to CG Leader / Peer Host",color:C.green},
+  {label:"Low engagement — noted only",color:C.amber},
+  {label:"Follow-up needed",color:C.red},
+  {label:"Fond Farewell",color:C.teal},
+];
+const TAGS=["Will return next week","Joined CG interest list","Not interested","Needs pastoral follow-up"];
+const POS_ICONS={Ground:"🌳",Lobby:"✨",Atrium:"👀"};
+
+const connColor=l=>CONN_OPTS.find(o=>o.label===l)?.color||C.muted;
+const seatCode=s=>s?.section?`${s.section}-${s.row?.replace(" row","").replace(/ last/,"L")}-${s.seat}${s.side}`:"—";
+const todayStr=()=>new Date().toISOString().slice(0,10);
+
+const SAMPLE=[
+  {id:1,serviceDate:"2026-05-11",guests:[{name:"Pastor David Kim",gender:"M"}],pax:1,phase:"Family",position:"Lobby",
+   description:"Grey blazer, glasses, Korean, mid-50s",hosts:["Bryan","Sheena"],country:"South Korea",
+   church:"Seoul City Church",howHeard:"Conference",purpose:"Learning about youth ministry",
+   seat:{section:"B3",row:"2nd row",seat:"4",side:"L"},connection:"Connected to Pastor / Senior Leader",
+   tags:["Will return next week"],remarks:"Very interested in CG structure.",isGroup:false},
+  {id:2,serviceDate:"2026-05-11",guests:[{name:"Priya Nair",gender:"F"},{name:"Ananya Raj",gender:"F"}],pax:2,
+   phase:"Young Adult",position:"Ground",description:"Two Indian ladies, early 20s. Priya in yellow dress.",
+   hosts:["Joy"],country:"India",church:"",howHeard:"Google",purpose:"Curious about the church",
+   seat:{section:"A1",row:"Last row",seat:"2",side:"R"},connection:"Connected to CG Leader / Peer Host",
+   tags:["Joined CG interest list"],remarks:"First time in Singapore. Very open.",isGroup:true},
+  {id:3,serviceDate:"2026-05-11",guests:[{name:"James Osei",gender:"M"}],pax:1,phase:"Young Adult",
+   position:"Atrium",description:"Tall, early 30s. Blue hoodie.",hosts:["Marcus"],country:"Ghana",
+   church:"Legon Interdenominational",howHeard:"Pastor Referral",purpose:"Holiday visit",
+   seat:{section:"D2",row:"3rd row",seat:"1",side:"L"},connection:"Fond Farewell",
+   tags:[],remarks:"Referred by Pastor Emmanuel.",isGroup:false},
+  {id:4,serviceDate:"2026-05-04",guests:[{name:"Sarah Lim",gender:"F"}],pax:1,phase:"UR/Poly",
+   position:"Lobby",description:"Chinese girl, 19, short hair, red top.",hosts:["Rachel","Caleb"],
+   country:"Singapore",church:"",howHeard:"Friend",purpose:"Exploring faith",
+   seat:{section:"B2",row:"4th row",seat:"3",side:"R"},connection:"Follow-up needed",
+   tags:["Needs pastoral follow-up"],remarks:"Handle with care.",isGroup:false},
+];
+
+/* ── Auditorium Map ── */
+function AuditoriumMap({selected,onSelect}){
+  const secs=[
+    {id:"A1",x:78,y:148,w:128,h:52,c:"#D97706"},{id:"A2",x:54,y:220,w:58,h:42,c:"#D97706"},
+    {id:"A3",x:120,y:220,w:58,h:42,c:"#D97706"},{id:"A4",x:186,y:220,w:58,h:42,c:"#D97706"},
+    {id:"B1",x:288,y:222,w:78,h:42,c:"#0D9488"},{id:"B2",x:288,y:172,w:78,h:44,c:"#0D9488"},
+    {id:"B3",x:288,y:116,w:78,h:50,c:"#0D9488"},{id:"B4",x:288,y:66,w:78,h:44,c:"#0D9488"},
+    {id:"B5",x:288,y:18,w:78,h:42,c:"#0D9488"},
+    {id:"C1",x:78,y:64,w:128,h:52,c:"#D97706"},{id:"C2",x:54,y:18,w:58,h:40,c:"#D97706"},
+    {id:"C3",x:120,y:18,w:58,h:40,c:"#D97706"},{id:"C4",x:186,y:18,w:58,h:40,c:"#D97706"},
+    {id:"D1",x:406,y:222,w:78,h:42,c:"#2563EB"},{id:"D2",x:406,y:170,w:78,h:46,c:"#2563EB"},
+    {id:"D3",x:406,y:108,w:78,h:56,c:"#2563EB"},{id:"D4",x:406,y:18,w:78,h:42,c:"#2563EB"},
+    {id:"D5",x:492,y:170,w:52,h:46,c:"#2563EB"},{id:"D6",x:492,y:66,w:52,h:88,c:"#2563EB"},
+    {id:"E",x:288,y:278,w:78,h:36,c:"#16A34A"},
+  ];
+  return(
+    <div style={{width:"100%",overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+      <svg viewBox="0 0 560 330" style={{width:"100%",maxWidth:540,display:"block",margin:"0 auto"}}>
+        <rect x={0} y={0} width={560} height={330} fill={C.bg} rx={8}/>
+        <rect x={54} y={104} width={210} height={60} fill="#1C2030" stroke={C.border} strokeWidth={1} rx={6}/>
+        <text x={159} y={139} textAnchor="middle" fill={C.muted} fontSize={12} fontFamily="sans-serif">Stage</text>
+        {secs.map(s=>{
+          const sel=selected===s.id;
+          return(
+            <g key={s.id} onClick={()=>onSelect(s.id)} style={{cursor:"pointer"}}>
+              <rect x={s.x} y={s.y} width={s.w} height={s.h}
+                fill={sel?s.c:s.c+"55"} stroke={sel?"#fff":s.c}
+                strokeWidth={sel?2.5:1} rx={4}/>
+              <text x={s.x+s.w/2} y={s.y+s.h/2+5} textAnchor="middle"
+                fill={sel?"#fff":"#ffffffbb"} fontSize={11}
+                fontWeight={sel?"700":"500"} fontFamily="sans-serif">{s.id}</text>
+            </g>
+          );
+        })}
+        <text x={327} y={325} textAnchor="middle" fill={C.muted} fontSize={9} fontFamily="sans-serif">▲ Entrance</text>
+      </svg>
+    </div>
+  );
+}
+
+/* ── Guest Card ── */
+function GuestCard({guest,onTap}){
+  const color=connColor(guest.connection);
+  return(
+    <div onClick={onTap} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,
+      padding:"13px 15px",marginBottom:10,cursor:"pointer",borderLeft:`3px solid ${color}`}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+            {guest.isGroup&&<span style={{fontSize:10,background:C.accentSoft,color:C.accent,borderRadius:4,padding:"1px 6px",flexShrink:0}}>GROUP</span>}
+            <span style={{color:C.text,fontWeight:700,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+              {guest.guests.map(g=>g.name).join(" & ")}
+            </span>
+          </div>
+          <div style={{color:C.muted,fontSize:12,marginTop:2}}>
+            {POS_ICONS[guest.position]} {guest.position} · {guest.phase} · {guest.pax} pax
+          </div>
+        </div>
+        <div style={{textAlign:"right",flexShrink:0,marginLeft:8}}>
+          <div style={{fontSize:11,color:C.muted}}>{seatCode(guest.seat)}</div>
+          <div style={{fontSize:11,color,marginTop:2,maxWidth:110,lineHeight:1.3}}>{guest.connection||"—"}</div>
+        </div>
+      </div>
+      <div style={{marginTop:8,display:"flex",gap:5,flexWrap:"wrap"}}>
+        {guest.hosts.map(h=>(
+          <span key={h} style={{fontSize:11,background:C.accentSoft,color:C.accent,borderRadius:4,padding:"1px 7px"}}>#{h}</span>
+        ))}
+        {guest.tags.map(t=>(
+          <span key={t} style={{fontSize:11,background:C.greenSoft,color:C.green,borderRadius:4,padding:"1px 7px"}}>{t}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Detail View ── */
+function DetailView({guest,onBack,onEdit}){
+  const color=connColor(guest.connection);
+  const Row=({label,value})=>value?(
+    <div style={{marginBottom:11}}>
+      <div style={{color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:2}}>{label}</div>
+      <div style={{color:C.text,fontSize:14}}>{value}</div>
+    </div>
+  ):null;
+  const Card=({children})=>(
+    <div style={{background:C.card,borderRadius:12,padding:14,marginBottom:12,border:`1px solid ${C.border}`}}>{children}</div>
+  );
+  return(
+    <div className="screen" style={{background:C.bg,paddingBottom:80}}>
+      <div style={{background:C.surface,padding:"16px 16px 12px",display:"flex",alignItems:"center",
+        gap:12,borderBottom:`1px solid ${C.border}`,position:"sticky",top:0,zIndex:10}}>
+        <button onClick={onBack} style={{background:"none",border:"none",color:C.accent,fontSize:22,cursor:"pointer",padding:"0 4px"}}>‹</button>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{color:C.text,fontWeight:700,fontSize:15,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            {guest.guests.map(g=>g.name).join(" & ")}
+          </div>
+          <div style={{color:C.muted,fontSize:12}}>{guest.serviceDate} · {POS_ICONS[guest.position]} {guest.position}</div>
+        </div>
+        <button onClick={onEdit} style={{background:C.accent,border:"none",color:"#fff",borderRadius:8,
+          padding:"7px 14px",fontSize:13,cursor:"pointer",fontWeight:700,flexShrink:0}}>Edit</button>
+      </div>
+      <div style={{padding:14}}>
+        <Card>
+          <div style={{color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Guests · {guest.pax} pax</div>
+          {guest.guests.map((g,i)=>(
+            <div key={i} style={{display:"flex",gap:8,alignItems:"center",marginBottom:i<guest.guests.length-1?6:0}}>
+              <span style={{background:g.gender==="M"?C.accentSoft:C.purpleSoft,color:g.gender==="M"?C.accent:C.purple,
+                borderRadius:4,padding:"1px 8px",fontSize:12}}>{g.gender}</span>
+              <span style={{color:C.text,fontSize:14}}>{g.name}</span>
+            </div>
+          ))}
+        </Card>
+        <Card>
+          <Row label="Phase of Life" value={guest.phase}/>
+          <Row label="Country / Home City" value={guest.country}/>
+          <Row label="Church / Ministry" value={guest.church}/>
+          <Row label="How They Heard" value={guest.howHeard}/>
+          <Row label="Purpose of Visit" value={guest.purpose}/>
+          <Row label="Description" value={guest.description}/>
+          <Row label="Seat" value={seatCode(guest.seat)}/>
+        </Card>
+        <Card>
+          <div style={{color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Hosts Assigned</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {guest.hosts.map(h=><span key={h} style={{background:C.accentSoft,color:C.accent,borderRadius:6,padding:"3px 10px",fontSize:13}}>#{h}</span>)}
+          </div>
+        </Card>
+        <div style={{background:C.card,borderRadius:12,padding:14,marginBottom:12,
+          border:`1px solid ${C.border}`,borderLeft:`3px solid ${color}`}}>
+          <div style={{color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Connection Status</div>
+          <div style={{color,fontSize:14,fontWeight:700,marginBottom:10}}>{guest.connection||"Not yet updated"}</div>
+          {guest.tags.length>0&&(
+            <>
+              <div style={{color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Tags</div>
+              <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+                {guest.tags.map(t=><span key={t} style={{background:C.greenSoft,color:C.green,borderRadius:6,padding:"3px 10px",fontSize:12}}>{t}</span>)}
+              </div>
+            </>
+          )}
+          {guest.remarks&&(
+            <>
+              <div style={{color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:4}}>Remarks</div>
+              <div style={{color:C.text,fontSize:14,lineHeight:1.5}}>{guest.remarks}</div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Log Form ── */
+function LogForm({onSave,onCancel,initial,hosts}){
+  const blank={id:Date.now(),serviceDate:todayStr(),guests:[{name:"",gender:"M"}],
+    pax:1,phase:"",position:"",description:"",hosts:[],country:"",church:"",
+    howHeard:"",purpose:"",seat:{section:"",row:"",seat:"",side:"L"},
+    connection:"",tags:[],remarks:"",isGroup:false};
+  const [form,setForm]=useState(initial||blank);
+  const [showMap,setShowMap]=useState(false);
+  const [errors,setErrors]=useState({});
+
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const setSeat=(k,v)=>setForm(f=>({...f,seat:{...f.seat,[k]:v}}));
+  const addGuest=()=>{const g=[...form.guests,{name:"",gender:"M"}];setForm(f=>({...f,guests:g,pax:g.length,isGroup:g.length>1}));};
+  const removeGuest=i=>{const g=form.guests.filter((_,idx)=>idx!==i);setForm(f=>({...f,guests:g,pax:g.length,isGroup:g.length>1}));};
+  const updateGuest=(i,k,v)=>{const g=form.guests.map((x,idx)=>idx===i?{...x,[k]:v}:x);setForm(f=>({...f,guests:g}));};
+  const toggleHost=h=>set("hosts",form.hosts.includes(h)?form.hosts.filter(x=>x!==h):[...form.hosts,h]);
+  const toggleTag=t=>set("tags",form.tags.includes(t)?form.tags.filter(x=>x!==t):[...form.tags,t]);
+
+  const validate=()=>{
+    const e={};
+    if(!form.guests[0].name)e.name="Guest name required";
+    if(!form.phase)e.phase="Required";
+    if(!form.position)e.position="Required";
+    if(!form.description)e.desc="Required";
+    if(!form.hosts.length)e.hosts="Assign at least one host";
+    setErrors(e);return!Object.keys(e).length;
+  };
+  const handleSave=()=>{if(validate())onSave(form);};
+
+  const Sec=({children,style:s})=>(
+    <div style={{background:C.card,borderRadius:12,padding:14,marginBottom:12,border:`1px solid ${C.border}`,...s}}>{children}</div>
+  );
+  const Lbl=({children,req,err})=>(
+    <div style={{color:err?C.red:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>
+      {children}{req&&<span style={{color:C.red}}> *</span>}
+    </div>
+  );
+  const inp={background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,
+    padding:"10px 12px",color:C.text,fontSize:14,outline:"none",width:"100%",boxSizing:"border-box"};
+
+  return(
+    <div className="screen" style={{background:C.bg,paddingBottom:100}}>
+      {/* sticky header */}
+      <div style={{background:C.surface,padding:"14px 16px",display:"flex",alignItems:"center",
+        gap:12,borderBottom:`1px solid ${C.border}`,position:"sticky",top:0,zIndex:10}}>
+        <button onClick={onCancel} style={{background:"none",border:"none",color:C.muted,fontSize:20,cursor:"pointer",padding:"0 4px"}}>✕</button>
+        <span style={{color:C.text,fontWeight:700,fontSize:16,flex:1}}>{initial?"Edit Guest":"Log New Guest"}</span>
+        <button onClick={handleSave} style={{background:C.accent,border:"none",color:"#fff",
+          borderRadius:8,padding:"8px 18px",fontSize:14,cursor:"pointer",fontWeight:700}}>Save</button>
+      </div>
+
+      <div style={{padding:14}}>
+        {/* Date */}
+        <Sec>
+          <Lbl>Service Date</Lbl>
+          <input type="date" value={form.serviceDate} onChange={e=>set("serviceDate",e.target.value)} style={inp}/>
+        </Sec>
+
+        {/* Guests */}
+        <Sec>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <Lbl req err={errors.name}>Guests <span style={{color:C.dimmed,fontWeight:400,fontSize:10}}>({form.pax} pax)</span></Lbl>
+            <button onClick={addGuest} style={{background:C.accentSoft,border:"none",color:C.accent,
+              borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",fontWeight:700}}>+ Add</button>
+          </div>
+          {form.guests.map((g,i)=>(
+            <div key={i} style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
+              <div style={{display:"flex",background:C.bg,borderRadius:8,border:`1px solid ${C.border}`,overflow:"hidden",flexShrink:0}}>
+                {["M","F"].map(gd=>(
+                  <button key={gd} onClick={()=>updateGuest(i,"gender",gd)} style={{
+                    background:g.gender===gd?(gd==="M"?C.accent:C.purple):"none",
+                    border:"none",color:g.gender===gd?"#fff":C.muted,
+                    padding:"9px 13px",cursor:"pointer",fontSize:13,fontWeight:700}}>
+                    {gd}
+                  </button>
+                ))}
+              </div>
+              <input value={g.name} onChange={e=>updateGuest(i,"name",e.target.value)}
+                placeholder={`Guest ${i+1} name`} style={{...inp,border:`1px solid ${errors.name&&i===0?C.red:C.border}`}}/>
+              {form.guests.length>1&&(
+                <button onClick={()=>removeGuest(i)} style={{background:"none",border:"none",color:C.red,fontSize:22,cursor:"pointer",flexShrink:0}}>×</button>
+              )}
+            </div>
+          ))}
+          {errors.name&&<div style={{color:C.red,fontSize:12,marginTop:2}}>{errors.name}</div>}
+        </Sec>
+
+        {/* Phase */}
+        <Sec>
+          <Lbl req err={errors.phase}>Phase of Life</Lbl>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:errors.phase?6:0}}>
+            {PHASES.map(p=>(
+              <button key={p} onClick={()=>set("phase",p)} style={{
+                background:form.phase===p?C.accent:C.bg,
+                border:`1px solid ${form.phase===p?C.accent:C.border}`,
+                color:form.phase===p?"#fff":C.muted,
+                borderRadius:20,padding:"6px 12px",fontSize:12,cursor:"pointer",fontWeight:form.phase===p?700:400}}>
+                {p}
+              </button>
+            ))}
+          </div>
+          {errors.phase&&<div style={{color:C.red,fontSize:12}}>{errors.phase}</div>}
+        </Sec>
+
+        {/* Position */}
+        <Sec>
+          <Lbl req err={errors.position}>Position Spotted</Lbl>
+          <div style={{display:"flex",gap:8}}>
+            {["Ground","Lobby","Atrium"].map(p=>(
+              <button key={p} onClick={()=>set("position",p)} style={{
+                flex:1,background:form.position===p?C.green:C.bg,
+                border:`1px solid ${form.position===p?C.green:C.border}`,
+                color:form.position===p?"#fff":C.muted,
+                borderRadius:8,padding:"9px 4px",fontSize:12,cursor:"pointer",fontWeight:form.position===p?700:400}}>
+                {POS_ICONS[p]}<br/>{p}
+              </button>
+            ))}
+          </div>
+          {errors.position&&<div style={{color:C.red,fontSize:12,marginTop:4}}>{errors.position}</div>}
+        </Sec>
+
+        {/* Description */}
+        <Sec>
+          <Lbl req err={errors.desc}>Physical Description</Lbl>
+          <textarea value={form.description} onChange={e=>set("description",e.target.value)}
+            placeholder="Clothing, hair, features — enough for a co-host to spot them" rows={3}
+            style={{...inp,resize:"none",fontFamily:"inherit",border:`1px solid ${errors.desc?C.red:C.border}`}}/>
+          {errors.desc&&<div style={{color:C.red,fontSize:12,marginTop:2}}>{errors.desc}</div>}
+        </Sec>
+
+        {/* Hosts */}
+        <Sec>
+          <Lbl req err={errors.hosts}>Hosts Assigned</Lbl>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {hosts.map(h=>(
+              <button key={h} onClick={()=>toggleHost(h)} style={{
+                background:form.hosts.includes(h)?C.accentSoft:C.bg,
+                border:`1px solid ${form.hosts.includes(h)?C.accent:C.border}`,
+                color:form.hosts.includes(h)?C.accent:C.muted,
+                borderRadius:20,padding:"6px 14px",fontSize:13,cursor:"pointer",fontWeight:form.hosts.includes(h)?700:400}}>
+                #{h}
+              </button>
+            ))}
+          </div>
+          {errors.hosts&&<div style={{color:C.red,fontSize:12,marginTop:5}}>{errors.hosts}</div>}
+        </Sec>
+
+        {/* Optional */}
+        <Sec>
+          <div style={{color:C.muted,fontSize:12,marginBottom:10,fontStyle:"italic"}}>Optional — fill what you can</div>
+          <Lbl>Country / Home City</Lbl>
+          <input value={form.country} onChange={e=>set("country",e.target.value)} placeholder="e.g. South Korea" style={{...inp,marginBottom:10}}/>
+          <Lbl>Church / Ministry</Lbl>
+          <input value={form.church} onChange={e=>set("church",e.target.value)} placeholder="e.g. Hillsong Sydney" style={{...inp,marginBottom:10}}/>
+          <Lbl>How They Heard</Lbl>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
+            {HOW_HEARD.map(h=>(
+              <button key={h} onClick={()=>set("howHeard",form.howHeard===h?"":h)} style={{
+                background:form.howHeard===h?C.amberSoft:C.bg,
+                border:`1px solid ${form.howHeard===h?C.amber:C.border}`,
+                color:form.howHeard===h?C.amber:C.muted,
+                borderRadius:20,padding:"5px 10px",fontSize:12,cursor:"pointer"}}>
+                {h}
+              </button>
+            ))}
+          </div>
+          <Lbl>Purpose of Visit</Lbl>
+          <input value={form.purpose} onChange={e=>set("purpose",e.target.value)} placeholder="e.g. Learning about youth ministry" style={inp}/>
+        </Sec>
+
+        {/* Seat */}
+        <Sec>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <Lbl>Seat Location</Lbl>
+            <button onClick={()=>setShowMap(true)} style={{background:C.tealSoft,border:`1px solid ${C.teal}`,
+              color:C.teal,borderRadius:8,padding:"5px 12px",fontSize:12,cursor:"pointer",fontWeight:700}}>
+              🗺 Map
+            </button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+            <div>
+              <div style={{color:C.muted,fontSize:11,marginBottom:4}}>Section</div>
+              <select value={form.seat.section} onChange={e=>setSeat("section",e.target.value)}
+                style={{...inp,color:form.seat.section?C.text:C.muted}}>
+                <option value="">— Select —</option>
+                {SECTIONS.map(s=><option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={{color:C.muted,fontSize:11,marginBottom:4}}>Row</div>
+              <select value={form.seat.row} onChange={e=>setSeat("row",e.target.value)}
+                style={{...inp,color:form.seat.row?C.text:C.muted}}>
+                <option value="">— Select —</option>
+                {ROWS.map(r=><option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:8}}>
+            <div>
+              <div style={{color:C.muted,fontSize:11,marginBottom:4}}>Seat #</div>
+              <input type="number" min="1" value={form.seat.seat}
+                onChange={e=>setSeat("seat",e.target.value)} placeholder="e.g. 4" style={inp}/>
+            </div>
+            <div>
+              <div style={{color:C.muted,fontSize:11,marginBottom:4}}>Side</div>
+              <div style={{display:"flex",background:C.bg,borderRadius:8,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+                {["L","R"].map(s=>(
+                  <button key={s} onClick={()=>setSeat("side",s)} style={{
+                    background:form.seat.side===s?C.accent:"none",border:"none",
+                    color:form.seat.side===s?"#fff":C.muted,
+                    padding:"10px 16px",cursor:"pointer",fontSize:14,fontWeight:700}}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          {form.seat.section&&form.seat.row&&form.seat.seat&&(
+            <div style={{marginTop:10,background:C.accentSoft,borderRadius:8,padding:"8px 12px",color:C.accent,fontSize:13,fontWeight:700}}>
+              Seat code: {seatCode(form.seat)}
+            </div>
+          )}
+        </Sec>
+
+        {/* Connection */}
+        <Sec>
+          <Lbl>Connection Status</Lbl>
+          <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:14}}>
+            {CONN_OPTS.map(o=>(
+              <button key={o.label} onClick={()=>set("connection",form.connection===o.label?"":o.label)} style={{
+                background:form.connection===o.label?o.color+"33":C.bg,
+                border:`1px solid ${form.connection===o.label?o.color:C.border}`,
+                color:form.connection===o.label?o.color:C.muted,
+                borderRadius:8,padding:"9px 12px",fontSize:13,cursor:"pointer",
+                textAlign:"left",fontWeight:form.connection===o.label?700:400}}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <Lbl>Remarks Tags</Lbl>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
+            {TAGS.map(t=>(
+              <button key={t} onClick={()=>toggleTag(t)} style={{
+                background:form.tags.includes(t)?C.greenSoft:C.bg,
+                border:`1px solid ${form.tags.includes(t)?C.green:C.border}`,
+                color:form.tags.includes(t)?C.green:C.muted,
+                borderRadius:20,padding:"5px 10px",fontSize:12,cursor:"pointer"}}>
+                {t}
+              </button>
+            ))}
+          </div>
+          <Lbl>Remarks</Lbl>
+          <textarea value={form.remarks} onChange={e=>set("remarks",e.target.value)}
+            placeholder="Any additional notes…" rows={3}
+            style={{...inp,resize:"none",fontFamily:"inherit"}}/>
+        </Sec>
+      </div>
+
+      {/* Map bottom sheet */}
+      {showMap&&(
+        <div style={{position:"fixed",inset:0,zIndex:200}}>
+          <div onClick={()=>setShowMap(false)} style={{position:"absolute",inset:0,background:"#000b"}}/>
+          <div style={{position:"absolute",bottom:0,left:0,right:0,background:C.surface,
+            borderRadius:"20px 20px 0 0",padding:18,maxHeight:"72vh",overflowY:"auto",
+            WebkitOverflowScrolling:"touch"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <span style={{color:C.text,fontWeight:700,fontSize:15}}>Auditorium Map</span>
+              <button onClick={()=>setShowMap(false)} style={{background:"none",border:"none",color:C.muted,fontSize:22,cursor:"pointer"}}>✕</button>
+            </div>
+            <div style={{color:C.muted,fontSize:12,marginBottom:10}}>Tap a section to select it</div>
+            <AuditoriumMap selected={form.seat.section} onSelect={s=>{setSeat("section",s);setShowMap(false);}}/>
+            {form.seat.section&&(
+              <div style={{marginTop:12,background:C.accentSoft,borderRadius:8,padding:"10px 14px",
+                color:C.accent,fontSize:14,fontWeight:700,textAlign:"center"}}>
+                Section {form.seat.section} selected ✓
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Dashboard ── */
+function Dashboard({guests,onAdd,onGuest}){
+  const today=guests.filter(g=>g.serviceDate===todayStr());
+  const totalPax=today.reduce((s,g)=>s+g.pax,0);
+  const groups=today.filter(g=>g.isGroup).length;
+  const byPos=["Ground","Lobby","Atrium"].map(p=>({label:p,icon:POS_ICONS[p],count:today.filter(g=>g.position===p).length}));
+  const byConn=CONN_OPTS.map(o=>({...o,count:today.filter(g=>g.connection===o.label).length})).filter(o=>o.count>0);
+
+  return(
+    <div className="screen" style={{background:C.bg,paddingBottom:88}}>
+      <div style={{background:C.surface,padding:"20px 16px 14px",borderBottom:`1px solid ${C.border}`}}>
+        <div style={{color:C.muted,fontSize:11,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:2}}>HOGC Host Ministry</div>
+        <div style={{color:C.text,fontSize:22,fontWeight:800}}>Live Dashboard</div>
+        <div style={{color:C.muted,fontSize:12,marginTop:2}}>{new Date().toLocaleDateString("en-SG",{weekday:"long",day:"numeric",month:"long"})}</div>
+      </div>
+      <div style={{padding:14}}>
+        {/* Stats */}
+        <div style={{display:"flex",gap:8,marginBottom:12}}>
+          {[
+            {label:"Guests",value:today.length,sub:`${totalPax} pax total`,color:C.accent},
+            {label:"Groups",value:groups,sub:"multi-person",color:C.purple},
+          ].map(s=>(
+            <div key={s.label} style={{background:C.card,borderRadius:12,padding:"14px 16px",border:`1px solid ${C.border}`,flex:1}}>
+              <div style={{color:s.color,fontSize:28,fontWeight:800,lineHeight:1}}>{s.value}</div>
+              <div style={{color:C.text,fontSize:13,fontWeight:700,marginTop:4}}>{s.label}</div>
+              <div style={{color:C.muted,fontSize:11,marginTop:2}}>{s.sub}</div>
+            </div>
+          ))}
+        </div>
+        {/* Position */}
+        <div style={{background:C.card,borderRadius:12,padding:14,marginBottom:12,border:`1px solid ${C.border}`}}>
+          <div style={{color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>By Position</div>
+          <div style={{display:"flex",gap:8}}>
+            {byPos.map(p=>(
+              <div key={p.label} style={{flex:1,textAlign:"center",background:C.bg,borderRadius:8,padding:"10px 4px"}}>
+                <div style={{fontSize:20}}>{p.icon}</div>
+                <div style={{color:C.text,fontWeight:800,fontSize:20}}>{p.count}</div>
+                <div style={{color:C.muted,fontSize:11}}>{p.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Connections */}
+        {byConn.length>0&&(
+          <div style={{background:C.card,borderRadius:12,padding:14,marginBottom:12,border:`1px solid ${C.border}`}}>
+            <div style={{color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>Connection Outcomes</div>
+            {byConn.map(o=>(
+              <div key={o.label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <div style={{width:8,height:8,borderRadius:"50%",background:o.color,flexShrink:0}}/>
+                  <span style={{color:C.text,fontSize:13}}>{o.label}</span>
+                </div>
+                <span style={{color:o.color,fontWeight:800,fontSize:16}}>{o.count}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* Guest list */}
+        <div style={{color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>Today's Guests</div>
+        {today.length===0?(
+          <div style={{background:C.card,borderRadius:12,padding:28,textAlign:"center",border:`1px solid ${C.border}`}}>
+            <div style={{fontSize:36,marginBottom:8}}>👋</div>
+            <div style={{color:C.muted,fontSize:14}}>No guests logged yet.</div>
+            <div style={{color:C.dimmed,fontSize:12,marginTop:4}}>Tap + to log your first guest.</div>
+          </div>
+        ):today.map(g=><GuestCard key={g.id} guest={g} onTap={()=>onGuest(g)}/>)}
+        {today.length===0&&guests.length>0&&(
+          <>
+            <div style={{color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10,marginTop:20}}>Recent — Past Services</div>
+            {guests.slice(0,3).map(g=><GuestCard key={g.id} guest={g} onTap={()=>onGuest(g)}/>)}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── History ── */
+function HistoryView({guests,onGuest}){
+  const [filter,setFilter]=useState("");
+  const dates=[...new Set(guests.map(g=>g.serviceDate))].sort().reverse();
+  const filtered=filter?guests.filter(g=>g.serviceDate===filter):guests;
+  return(
+    <div className="screen" style={{background:C.bg,paddingBottom:88}}>
+      <div style={{background:C.surface,padding:"20px 16px 14px",borderBottom:`1px solid ${C.border}`}}>
+        <div style={{color:C.text,fontSize:20,fontWeight:800,marginBottom:10}}>Service History</div>
+        <select value={filter} onChange={e=>setFilter(e.target.value)}
+          style={{width:"100%",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,
+            padding:"10px 12px",color:filter?C.text:C.muted,fontSize:14,outline:"none"}}>
+          <option value="">All services</option>
+          {dates.map(d=><option key={d} value={d}>{d}</option>)}
+        </select>
+      </div>
+      <div style={{padding:14}}>
+        <div style={{color:C.muted,fontSize:12,marginBottom:10}}>{filtered.length} guest{filtered.length!==1?"s":""}</div>
+        {filtered.map(g=><GuestCard key={g.id} guest={g} onTap={()=>onGuest(g)}/>)}
+      </div>
+    </div>
+  );
+}
+
+/* ── Settings ── */
+function SettingsView({hosts,setHosts}){
+  const [newHost,setNewHost]=useState("");
+  const add=()=>{if(newHost.trim()&&!hosts.includes(newHost.trim())){setHosts([...hosts,newHost.trim()]);setNewHost("");}};
+  return(
+    <div className="screen" style={{background:C.bg,paddingBottom:88}}>
+      <div style={{background:C.surface,padding:"20px 16px 14px",borderBottom:`1px solid ${C.border}`}}>
+        <div style={{color:C.text,fontSize:20,fontWeight:800}}>Settings</div>
+        <div style={{color:C.muted,fontSize:12,marginTop:2}}>Host IC — set up before duty</div>
+      </div>
+      <div style={{padding:14}}>
+        <div style={{background:C.card,borderRadius:12,padding:14,border:`1px solid ${C.border}`}}>
+          <div style={{color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:12}}>Duty Roster</div>
+          {hosts.map(h=>(
+            <div key={h} style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+              marginBottom:8,background:C.bg,borderRadius:8,padding:"10px 12px"}}>
+              <span style={{color:C.text,fontSize:14}}>#{h}</span>
+              <button onClick={()=>setHosts(hosts.filter(x=>x!==h))} style={{background:"none",border:"none",color:C.red,fontSize:22,cursor:"pointer",padding:"0 4px"}}>×</button>
+            </div>
+          ))}
+          <div style={{display:"flex",gap:8,marginTop:10}}>
+            <input value={newHost} onChange={e=>setNewHost(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&add()} placeholder="Add host name…"
+              style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,
+                padding:"10px 12px",color:C.text,fontSize:14,outline:"none"}}/>
+            <button onClick={add} style={{background:C.accent,border:"none",color:"#fff",
+              borderRadius:8,padding:"10px 16px",fontSize:16,cursor:"pointer",fontWeight:700}}>+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Bottom Nav ── */
+function BottomNav({tab,setTab,onAdd}){
+  const items=[{id:"dashboard",icon:"⚡",label:"Dashboard"},{id:"history",icon:"📋",label:"History"},{id:"settings",icon:"⚙️",label:"Settings"}];
+  return(
+    <div style={{position:"fixed",bottom:0,left:0,right:0,background:C.surface,
+      borderTop:`1px solid ${C.border}`,display:"flex",alignItems:"center",
+      padding:"8px 0 max(12px, env(safe-area-inset-bottom))",zIndex:50}}>
+      {items.map(item=>(
+        <button key={item.id} onClick={()=>setTab(item.id)} style={{
+          flex:1,background:"none",border:"none",cursor:"pointer",padding:"4px 0",
+          color:tab===item.id?C.accent:C.dimmed,
+          display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+          <span style={{fontSize:22}}>{item.icon}</span>
+          <span style={{fontSize:10,fontWeight:tab===item.id?700:400}}>{item.label}</span>
+        </button>
+      ))}
+      <button onClick={onAdd} style={{width:54,height:54,borderRadius:"50%",background:C.accent,
+        border:"none",color:"#fff",fontSize:30,cursor:"pointer",
+        display:"flex",alignItems:"center",justifyContent:"center",
+        boxShadow:`0 4px 20px ${C.accent}66`,marginRight:10,lineHeight:1,fontWeight:300}}>+</button>
+    </div>
+  );
+}
+
+/* ── App ── */
+function App(){
+  const [tab,setTab]=useState("dashboard");
+  const [guests,setGuests]=useState(SAMPLE);
+  const [hosts,setHosts]=useState(HOSTS_DEFAULT);
+  const [logging,setLogging]=useState(false);
+  const [editing,setEditing]=useState(null);
+  const [viewing,setViewing]=useState(null);
+
+  const saveGuest=g=>{
+    setGuests(gs=>{const ex=gs.find(x=>x.id===g.id);return ex?gs.map(x=>x.id===g.id?g:x):[g,...gs];});
+    setLogging(false);setEditing(null);setViewing(null);setTab("dashboard");
+  };
+
+  if(logging)return<LogForm onSave={saveGuest} onCancel={()=>setLogging(false)} hosts={hosts}/>;
+  if(editing)return<LogForm onSave={saveGuest} onCancel={()=>setEditing(null)} initial={editing} hosts={hosts}/>;
+  if(viewing)return<DetailView guest={viewing} onBack={()=>setViewing(null)} onEdit={()=>{setEditing(viewing);setViewing(null);}}/>;
+
+  return(
+    <div style={{background:C.bg,minHeight:"100vh",maxWidth:430,margin:"0 auto"}}>
+      {tab==="dashboard"&&<Dashboard guests={guests} onAdd={()=>setLogging(true)} onGuest={setViewing}/>}
+      {tab==="history"&&<HistoryView guests={guests} onGuest={setViewing}/>}
+      {tab==="settings"&&<SettingsView hosts={hosts} setHosts={setHosts}/>}
+      <BottomNav tab={tab} setTab={setTab} onAdd={()=>setLogging(true)}/>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
