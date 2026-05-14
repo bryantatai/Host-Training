@@ -280,7 +280,18 @@ const SQUARES = [
     text:'Has shouted out a fellow host in the team debrief',
     findOut:'Ask them: <strong>"What did that person do that stood out?"</strong>'
   },
+  // LEVEL 1
+  {
+    id:'l1e', level:'1',
+    text:'Is an introvert but still enjoys engaging guests',
+    findOut:'Ask them: <strong>"What gives you energy after a long serving day?"</strong>'
+  },
   // LEVEL 2
+  {
+    id:'l2f', level:'2',
+    text:'Can engage guests in 2 or more languages confidently',
+    findOut:'Ask them: <strong>"Which languages — and has it ever made a real difference with a guest?"</strong>'
+  },
   {
     id:'l2a', level:'2',
     text:'Has served in all 3 positions — Ground, Lobby & Atrium',
